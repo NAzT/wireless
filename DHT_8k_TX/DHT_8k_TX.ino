@@ -11,11 +11,11 @@
 
 #define DHTPIN 9     // what pin we're connected to
 #define DHTTYPE DHT22   // DHT 22  (AM2302)
-
+#define MSG_SIZE 19
 // end define
 //global variable
 DHT dht(DHTPIN, DHTTYPE);
-char buffer[16];
+char buffer[MSG_SIZE];
 // end global variable
 
 // setup
@@ -40,14 +40,16 @@ void loop()
     buffer[0] = '0'; //digitalRead(8)+48;
     buffer[1] = digitalRead(7)+48;
     buffer[2] = digitalRead(8)+48;   
-    buffer[3] = ',';
+    // &buffer[3]
+    memcpy(buffer+3, ",2,", 3);
     
-    dtostrf(dht.readTemperature(), 2, 2, &buffer[4]);
-    buffer[9] = ',';
-    dtostrf(dht.readHumidity(), 2, 2, &buffer[10]);
-    buffer[15] = '\0';    
+    dtostrf(dht.readTemperature(), 2, 2, &buffer[6]);
+    buffer[11] = ':';
     
-    vw_send((uint8_t *)buffer, 16); // transmit msg
+    dtostrf(dht.readHumidity(), 2, 2, &buffer[12]);
+    buffer[17] = '\0';
+    
+    vw_send((uint8_t *)buffer, MSG_SIZE); // transmit msg
     vw_wait_tx(); // Wait for message to finish
 
     digitalWrite(13, false);

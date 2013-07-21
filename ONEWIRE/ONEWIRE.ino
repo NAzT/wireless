@@ -2,7 +2,7 @@
 #include <VirtualWire.h> // ver. 1.5
 
 OneWire  ds(10);  // on pin 10 (a 4.7K resistor is necessary)
-char buffer[10];
+char buffer[12];
 
 void setup(void) {
 //  vw_set_tx_pin(13);
@@ -40,7 +40,7 @@ void loop(void) {
   ds.select(addr);
   ds.write(0x44, 1);        // start conversion, with parasite power on at the end
   
-  delay(1000);     // maybe 750ms is enough, maybe not
+  delay(1000+random(300));     // maybe 750ms is enough, maybe not
   // we might do a ds.depower() here, but the reset will take care of it.
   
   present = ds.reset();
@@ -76,11 +76,13 @@ void loop(void) {
     buffer[1] = digitalRead(7)+48;
     buffer[2] = digitalRead(8)+48;   
     buffer[3] = ',';
-    buffer[9] = '\0'; 
+    buffer[4] = '1';
+    buffer[5] = ',';    
+    buffer[11] = '\0'; 
     
-  dtostrf(celsius, 2, 2, &buffer[4]);  
+  dtostrf(celsius, 2, 2, &buffer[6]);  
   vw_send((uint8_t *)buffer, 16); // transmit msg
   vw_wait_tx(); // Wait for message to finish  
   digitalWrite(13, false);
-  delay(200);
+  delay(50+random(300));
 }
