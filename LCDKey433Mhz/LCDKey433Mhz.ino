@@ -3,29 +3,27 @@
 #include <VirtualWire.h>
 #include <stdio.h>
 #include <string.h>
+#include "pt.h"
+ 
+static struct pt pt1, pt2;
 
 #define MAX_WORDS 100
 #ifndef NULL
 #define NULL 0
 #endif
 
-/*
- * File: LCDKeyDemo.ino
- * Hardware: DFRobot LCD Keypad Shield for Arduino
- * Author: Paul R. Nelson III
- * Version: 1.0
- * License:  BSD 2-clause
- * Descritpion:  Full-on demo of of 'DFRobot LCD Keypad Shield V1.0'
- *   Features - user defined display characters
- *            - blink
- *            - program controlled backlight brightness
- *            - single press increment/decrement
- *            - key auto-repeat at fixed interval when held down
- *            - display of characters and their values
- *            - mouse-mode - select toggles display vs mouse by changing button callbacks
- *              - moves character block using up/down, left/right
- * 
- */
+
+// static int thread1( struct pt *pt, long timeout, DFR_LCDKeypad *keypad ) {
+//   static long t1 = 0;
+//   PT_BEGIN( pt );
+//   while(1) {
+//     PT_WAIT_UNTIL( pt, (millis() - t1) > timeout );
+//         Serial.println("IN THREAD1");
+//         (*keypad).update();
+//        t1 = millis();
+//   }
+//   PT_END( pt );
+// }
 /* interesting display chars 
  * 126  ->
  * 127  <-
@@ -46,100 +44,40 @@
  * 253 divide 
  * 255 full box
  */
+// Values are midpoints between analog value of key press.
+#define SENSOR_NUM 3
+#define SENSOR_TYPE 3
+#define MAX_NODE 8
 
+char* sensor_data[SENSOR_TYPE][MAX_NODE] = {
+  {0, 0, 0, 0, 0, 0, 0, 0},
+  {0, 0, 0, 0, 0, 0, 0, 0},
+  {0, 0, 0, 0, 0, 0, 0, 0},
+}; 
+
+struct SENSOR {
+  byte type;
+  byte node;
+  char* s;
+};
 const byte cBrightness(128);
 //Pin assignments for DFRobot LCD Keypad Shield
 LiquidCrystal lcd(8, 9, 4, 5, 6, 7);
 DFR_LCDKeypad keypad(cBrightness);
-byte displayChar(0);
-byte brightness(cBrightness);
+byte displayChar(1);
+int vertChar;
+// byte brightness(cBrightness);
 
-unsigned long prevTick(0);
-unsigned int keyInterval(700);
-bool isSolid(true);
+// unsigned long prevTick(0);
+// unsigned int keyInterval(700);
+// bool isSolid(true);
 
-
-byte smiley[8] = {
-  B00000,
-  B10001,
-  B00000,
-  B00000,
-  B10001,
-  B01110,
-  B00000,
-};
-
-byte fwd[8] = {
-   B00000,
-   B01000,
-   B01100,
-   B01110,
-   B01111,
-   B01110,
-   B01100,
-   B01000
-};
-
-byte ch_fwd[8] = {
-   B00000,
-   B10001,
-   B11001,
-   B11101,
-   B11111,
-   B11101,
-   B11001,
-   B10001
-};
-
-byte rev[8] = {
-   B00000,
-   B00010,
-   B00110,
-   B01110,
-   B11110,
-   B01110,
-   B00110,
-   B00010
-};
-
-byte ch_rev[8] = {
-   B00000,
-   B10001,
-   B10011,
-   B10111,
-   B11111,
-   B10111,
-   B10011,
-   B10001
-};
-
-byte pause[8] = {
-   B00000,
-   B11011,
-   B11011,
-   B11011,
-   B11011,
-   B11011,
-   B11011,
-   B11011
-};
-
-byte Stop[8] = {
-   B00000,
-   B00000,
-   B11111,
-   B11111,
-   B11111,
-   B11111,
-   B11111,
-   B00000
-  }; 
-       
-static int sHeldCount(0);
 static byte xPos(0);
 static byte yPos(0);
-static bool isMouseMode(false);
-void mouseBtnUp(eDFRKey);
+
+char *buffer, *words[MAX_WORDS], *aPtr, *bPtr;
+int count = 0, i;
+// char* printStr;
 
 char* data[10] = { '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0' };
 
@@ -148,169 +86,81 @@ int fromBinary(char *s) {
 }
 
 
-
-
 // Character display is occuring once in setup, then only again in the button routines
 // no need to refresh in update loop unless there is a change.  For now just redisplay all 
 // text instead of additional logic to update only chagned value and display character.
 // it is by far fast enough.
-void charDisplay() 
-{
+void charDisplay() {
     // display characters mode
     lcd.setCursor(0, 0);
-    lcd.print("Display Char: ");
-    lcd.setCursor(14,0);
-    lcd.write(displayChar);
+    // lcd.print("Sensor Type: ");
+    lcd.print("Type: ");
+    lcd.print(displayChar%SENSOR_NUM);
+    lcd.print(" ");
+    lcd.print("Node: ");
+    lcd.print(vertChar%MAX_NODE);
+    // lcd.setCursor(14,0);
+    // lcd.write(displayChar);
       
     lcd.setCursor(0,1);
-    lcd.print("Value: ");
-    lcd.print(displayChar);
-    lcd.print("  ");  // make sure to cleanup after numerical wrap around
+    // lcd.print("Vert: ");
+    // lcd.print(vertChar);
+    // lcd.print(printStr);
+    if (sensor_data[displayChar%SENSOR_NUM][vertChar] == 0) {
+      lcd.print("NULL            ");
+    }
+    else {
+      lcd.print(sensor_data[displayChar%SENSOR_NUM][vertChar%MAX_NODE]);
+      lcd.print("      ");
+    }
+    // lcd.print("  ");  // make sure to cleanup after numerical wrap around
  }
 
-void cursorDraw() 
-{
-//  lcd.write(254);
-  prevTick = millis();
-  isSolid = true;
-  lcd.setCursor(xPos,yPos);
-  lcd.write(255);
-}
-
-void buttonUp(eDFRKey key) 
-{
-  sHeldCount = 0;
+void buttonUp(eDFRKey key) {
+  Serial.print("KEY: ");
+  Serial.print(key);
+  // Serial.println(brightness);
 
   switch(key) {
     case eUp:
-      if(brightness < 255) 
-        keypad.setBrightness(++brightness);
+      Serial.println("eUp");
+      vertChar = abs(--vertChar);
+      // if(brightness < 255) 
+      //   keypad.setBrightness(++brightness);
       break;
-      
     case eDown:
-      if(brightness > 0) 
-        keypad.setBrightness(--brightness);
+      ++vertChar;
+      Serial.println("eDown");    
+      // if(brightness > 0) 
+      //   keypad.setBrightness(--brightness);
       break;
       
     case eLeft:
+      Serial.println("eLeft");        
       --displayChar;
+      vertChar = 0;
       break;
       
     case eRight:
+      Serial.println("eRight");        
+      vertChar = 0;
       ++displayChar;
       break;
       
     case eSelect:
+      Serial.println("eSelect");        
       // switch to mouse mode
-      isMouseMode = true;
-      lcd.clear();
-      cursorDraw();
-      keypad.setButtonUpHandler(mouseBtnUp);
-      keypad.setButtonHeldHandler(0);
+      // keypad.setButtonHeldHandler(0);
       return;
   }
   charDisplay();
 }
 
-/*
-void buttonDown(eDFRKey key) {
- // lcd.clear();
-  lcd.setCursor(0,0);
-  lcd.print("Pressed = ");
-  switch(key) {
-    case eUp:
-      lcd.print("Up");
-      break;
-      
-    case eDown:
-      lcd.print("Down");
-      break;
-      
-    case eLeft:
-      lcd.print("Left");
-      break;
-      
-    case eRight:
-      lcd.print("Right");
-      break;
-      
-    case eSelect:
-      lcd.print("Sel");
-      break;
-  }
-}
-*/
 
-void buttonHeld(eDFRKey key) {
-  sHeldCount++;
-  if(sHeldCount > 1) {
-    switch(key) {
-      case eUp:
-        if(brightness < 255)
-          keypad.setBrightness(++brightness);
-        break;
-      
-      case eDown:
-        if(brightness > 0)
-          keypad.setBrightness(--brightness);
-        break;
-      
-      case eLeft:
-         --displayChar;
-        break;
-      
-      case eRight:
-          ++displayChar;
-        break;
-      
-      case eSelect:
-        break;
-    }
-  }
-  // speed things up
-  if(sHeldCount > 30) {
-    keypad.setHeldInterval(30);
-  } else if(sHeldCount > 10) {
-    keypad.setHeldInterval(100);
-  }
-  charDisplay();
-}
-
-// clamps to edges of display, rather than wrap
-void mouseBtnUp(eDFRKey key) 
-{
-  lcd.clear();    // fewer bytes than lcd.setCursor(,); lcd.write()
-
-  switch(key) {
-
-    case eUp:
-    case eDown:
-      yPos = (yPos) ? 0 : 1;   // display is only 2 lines tall
-      break;
-      
-    case eLeft:
-      if(xPos > 0) --xPos;
-      break;
-      
-    case eRight:
-      if(xPos < 15) ++xPos;
-      break;
-      
-    case eSelect:
-      // switch back to display mode
-      charDisplay();
-      isMouseMode = false;
-      keypad.setButtonUpHandler(buttonUp);
-      keypad.setButtonHeldHandler(buttonHeld);
-      return;
-  }
-  cursorDraw(); 
-}
-
-void setup() 
-{
+void setup() {
+  vertChar = 0;
   Serial.begin(9600);
-  Serial.println("setup");
+  // Serial.  println("setup");
 
   // Initialise the IO and ISR
   vw_set_rx_pin(13);    
@@ -325,64 +175,76 @@ void setup()
   lcd.print("LCDKeypad v1.0");
   keypad.setButtonUpHandler(buttonUp);
 //  keypad.setButtonDownHandler(buttonDown);
-  keypad.setButtonHeldHandler(buttonHeld);
+  // keypad.setButtonHeldHandler(buttonHeld);
    
-  lcd.createChar(0, smiley);
-  lcd.createChar(1, fwd);
-  lcd.createChar(2, rev);
-  lcd.createChar(3, pause);
-  lcd.createChar(4, Stop);
-  lcd.createChar(5, ch_fwd);
-  lcd.createChar(6, ch_rev);
-//  lcd.createChar(7, );
-  delay(2500);
+  delay(250);
   
   lcd.clear();
   charDisplay();
 }
 
-void loop() 
-{
-  char *buffer, *words[MAX_WORDS], *aPtr, *bPtr;
-  int count = 0, i;  
+void loop() {
+    keypad.update();
+    // thread1( &pt1, 2000, &keypad);
+    count = 0;
   // updates current key press value and calls button callbacks if necessary  
-  keypad.update();
-//  char msg[30];
-//  memcpy(msg, "GET /sensor/", 12);
-  uint8_t buf[VW_MAX_MESSAGE_LEN];
-  uint8_t buflen = VW_MAX_MESSAGE_LEN;
-  uint8_t msg_size;
-  if (vw_get_message(buf, &buflen)) // Non-blocking
-  {
-      digitalWrite(13, true); // Flash a light to show received good message
-//        msg_size = strlen((char*) buf);
-//        memcpy(msg+12, buf, msg_size);
-//        strcpy(msg+12+msg_size, " HTTP/1.1");
-      lcd.clear();
-      Serial.println((char*) buf);
-      lcd.print((char*) buf);
-      buffer = strdup((char*)buf);
-      Serial.print("Buffer: ");
-      Serial.println(buffer);
-      while((aPtr = strsep(&buffer, ",")) && count < MAX_WORDS) {
-          words[count++] = aPtr;
-      }
-      for (i = 0; i < count; i++) {
-          printf("%s\n", words[i]);
-      }
-      
-      
-  }
-  
-  unsigned long current = millis();
-  
-  if(isMouseMode) {  
-    // blink full display element at key interval  
-    if(current - prevTick > keyInterval) {
-      prevTick = current;
-      lcd.setCursor(xPos,yPos);
-      isSolid = !isSolid;
-      lcd.write( isSolid ? 255 : 254 );
+    uint8_t buf[VW_MAX_MESSAGE_LEN];
+    uint8_t buflen = VW_MAX_MESSAGE_LEN;
+    // Serial.println("1. WAITING...");
+    // vw_wait_rx();
+    // Serial.println("2. ### GOT IT ###");
+    if (vw_get_message(buf, &buflen)) // Non-blocking    
+    {
+        // digitalWrite(13, true); // Flash a light to show received good message
+        Serial.println((char*) buf);
+        // memcpy(buffer, (char*)buf, buflen);
+        // buffer = strdup((char*) buf);
+        char *a = (char*) buf;
+        while((aPtr = strsep(&a, ","))) {
+            words[count++] = aPtr;
+        }
+
+        Serial.print("node: ");
+        Serial.print(fromBinary(words[0]));
+        Serial.print(" type: ");
+        Serial.print(words[1]);
+        Serial.print(" value: ");
+        Serial.println(words[2]);
+        // if (fromBinary(words[1]) == (1+displayChar%SENSOR_NUM)) {
+        //   printStr = strdup(words[2]);
+        // }
+        free(sensor_data[atoi(words[1])][fromBinary(words[0])]);
+        sensor_data[atoi(words[1])][fromBinary(words[0])] = strdup(words[2]); 
+
+        Serial.println("==============================");
+        for (int i = 0; i < SENSOR_TYPE; ++i)
+        {
+          for (int j = 0; j < MAX_NODE; ++j)
+          {
+            if (sensor_data[i][j] == 0) {
+              Serial.print("NULL");
+            }
+            else {
+              Serial.print(sensor_data[i][j]);
+            }
+
+            if (atoi(words[1]) == 2) {
+              Serial.print(",\t");
+            }
+            else {
+              Serial.print("\t,\t");
+            }
+
+          }
+          Serial.println();
+        }
+        Serial.println("==============================");
+
     }
-  } 
+    // Serial.println("3. === ENDED ===");
+
+  charDisplay();  
+  unsigned long current = millis();
+  // Serial.println(current);
+  
 }
