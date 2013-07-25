@@ -9,26 +9,6 @@
 #define NULL 0
 #endif
 
- /* interesting display chars
- * 126  ->
- * 127  <-
- * 161  small box lower left 3x3 center open
- * 162  left upper box corner 
- * 163  rt   lower box corner
- * 164  lower left corner \
- * 165  center 4 pixel box
- * 186  Left open box
- * 219  Full open box
- * 223  Upper left open 3x3 (degree symbol)
- * 242 omega
- * 243 interestign horizontla box
- * 244 ohm
- * 246 capital Sigma
- * 247 pi
- * 248 x bar - bar over x
- * 253 divide 
- * 255 full box
- */
 // Values are midpoints between analog value of key press.
 
 #define SENSOR_NUM 3
