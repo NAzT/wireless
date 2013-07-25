@@ -163,76 +163,75 @@ void setup() {
 }
 
 void loop() {
-    // updates current key press value and calls button callbacks if necessary  
-    keypad.update();
-    count = 0;
-    uint8_t buf[VW_MAX_MESSAGE_LEN];
-    uint8_t buflen = VW_MAX_MESSAGE_LEN;
-    // vw_wait_rx();
-    if (vw_get_message(buf, &buflen)) // Non-blocking    
-    {
-        int l_type;
-        int l_node;
-        char* l_value;
-        digitalWrite(13, true); // Flash a light to show received good message
-        Serial.println((char*) buf);
-        char *a = (char*) buf;
-        while((aPtr = strsep(&a, ","))) {
-            words[count++] = aPtr;
-        }
+  // updates current key press value and calls button callbacks if necessary  
+  keypad.update();
+  count = 0;
+  uint8_t buf[VW_MAX_MESSAGE_LEN];
+  uint8_t buflen = VW_MAX_MESSAGE_LEN;
+  // vw_wait_rx();
+  if (vw_get_message(buf, &buflen)) // Non-blocking    
+  {
+      int l_type;
+      int l_node;
+      char* l_value;
+      digitalWrite(13, true); // Flash a light to show received good message
+      Serial.println((char*) buf);
+      char *a = (char*) buf;
+      while((aPtr = strsep(&a, ","))) {
+          words[count++] = aPtr;
+      }
 
-        l_type = atoi(words[1]);
-        l_node = fromBinary(words[0]);
-
-
-        sensor_t *sensor_temp;
-        sensor_temp = sensor_data[l_type][l_node];
-        if (sensor_temp != 0) {
-          free(sensor_data[l_type][l_node]->str);
-        }
-        free(sensor_data[l_type][l_node]);
+      l_type = atoi(words[1]);
+      l_node = fromBinary(words[0]);
 
 
-        Serial.print("node: ");
-        Serial.print(l_node);
-        Serial.print(" type: ");
-        Serial.print(l_type);
-        Serial.print(" value: ");
-        Serial.println(words[2]);
-        sensor_t *var = (sensor_t*)malloc(sizeof(sensor_t));
-        var->node = l_node;
-        var->type = l_type;
-        var->str = strdup(words[2]);
-        sensor_data[l_type][l_node] = var;
+      sensor_t *tmpSensor;
+      sensor_t *sensor_temp;
+      sensor_temp = sensor_data[l_type][l_node];
+      if (sensor_temp != 0) {
+        free(sensor_data[l_type][l_node]->str);
+      }
+      free(sensor_data[l_type][l_node]);
 
-        Serial.println("==============================");
-        for (int i = 0; i < SENSOR_TYPE; ++i)
+
+      Serial.print("node: ");
+      Serial.print(l_node);
+      Serial.print(" type: ");
+      Serial.print(l_type);
+      Serial.print(" value: ");
+      Serial.println(words[2]);
+
+      tmpSensor = (sensor_t*)malloc(sizeof(sensor_t));
+      tmpSensor->node = l_node;
+      tmpSensor->type = l_type;
+      tmpSensor->str = strdup(words[2]);
+      sensor_data[l_type][l_node] = tmpSensor;
+
+      Serial.println("==============================");
+      for (int i = 0; i < SENSOR_TYPE; ++i)
+      {
+        for (int j = 0; j < MAX_NODE; ++j)
         {
-          for (int j = 0; j < MAX_NODE; ++j)
-          {
-            if (sensor_data[i][j] == 0) {
-              Serial.print("null");
-            }
-            else {
-              Serial.print((*sensor_data[i][j]).str);
-            }
-
-            if (l_type == 2) {
-              Serial.print(",\t");
-            }
-            else {
-              Serial.print(",\t");
-            }
-
+          if (sensor_data[i][j] == 0) {
+            Serial.print("null");
           }
-          Serial.println();
+          else {
+            Serial.print((*sensor_data[i][j]).str);
+          }
+
+          if (l_type == 2) {
+            Serial.print(",\t");
+          }
+          else {
+            Serial.print(",\t");
+          }
+
         }
-        Serial.println("==============================");
-
-
+        Serial.println();
+      }
+      Serial.println("==============================");
       digitalWrite(13, false); // Flash a light to show received good message
-    }
-    // Serial.println("3. === ENDED ===");
+  }
 
   charDisplay();  
   unsigned long current = millis();
