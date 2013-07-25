@@ -3,7 +3,6 @@
 #include <VirtualWire.h>
 #include <stdio.h>
 #include <string.h>
-#include "pt.h"
  
 static struct pt pt1, pt2;
 
@@ -12,19 +11,7 @@ static struct pt pt1, pt2;
 #define NULL 0
 #endif
 
-
-// static int thread1( struct pt *pt, long timeout, DFR_LCDKeypad *keypad ) {
-//   static long t1 = 0;
-//   PT_BEGIN( pt );
-//   while(1) {
-//     PT_WAIT_UNTIL( pt, (millis() - t1) > timeout );
-//         Serial.println("IN THREAD1");
-//         (*keypad).update();
-//        t1 = millis();
-//   }
-//   PT_END( pt );
-// }
-/* interesting display chars 
+ /* interesting display chars
  * 126  ->
  * 127  <-
  * 161  small box lower left 3x3 center open
@@ -67,18 +54,12 @@ LiquidCrystal lcd(8, 9, 4, 5, 6, 7);
 DFR_LCDKeypad keypad(cBrightness);
 byte displayChar(1);
 int vertChar;
-// byte brightness(cBrightness);
-
-// unsigned long prevTick(0);
-// unsigned int keyInterval(700);
-// bool isSolid(true);
 
 static byte xPos(0);
 static byte yPos(0);
 
 char *buffer, *words[MAX_WORDS], *aPtr, *bPtr;
 int count = 0, i;
-// char* printStr;
 
 int fromBinary(char *s) {
   return (int) strtol(s, NULL, 2);
@@ -161,7 +142,6 @@ void buttonUp(eDFRKey key) {
 void setup() {
   vertChar = 0;
   Serial.begin(9600);
-  // Serial.  println("setup");
 
   // Initialise the IO and ISR
   vw_set_rx_pin(13);    
@@ -175,8 +155,6 @@ void setup() {
   lcd.setCursor(0, 0);
   lcd.print("LCDKeypad v1.0");
   keypad.setButtonUpHandler(buttonUp);
-//  keypad.setButtonDownHandler(buttonDown);
-  // keypad.setButtonHeldHandler(buttonHeld);
    
   delay(250);
   
@@ -185,24 +163,19 @@ void setup() {
 }
 
 void loop() {
+    // updates current key press value and calls button callbacks if necessary  
     keypad.update();
-    // thread1( &pt1, 2000, &keypad);
     count = 0;
-  // updates current key press value and calls button callbacks if necessary  
     uint8_t buf[VW_MAX_MESSAGE_LEN];
     uint8_t buflen = VW_MAX_MESSAGE_LEN;
-    // Serial.println("1. WAITING...");
     // vw_wait_rx();
-    // Serial.println("2. ### GOT IT ###");
     if (vw_get_message(buf, &buflen)) // Non-blocking    
     {
         int l_type;
         int l_node;
         char* l_value;
-        // digitalWrite(13, true); // Flash a light to show received good message
+        digitalWrite(13, true); // Flash a light to show received good message
         Serial.println((char*) buf);
-        // memcpy(buffer, (char*)buf, buflen);
-        // buffer = strdup((char*) buf);
         char *a = (char*) buf;
         while((aPtr = strsep(&a, ","))) {
             words[count++] = aPtr;
@@ -211,12 +184,6 @@ void loop() {
         l_type = atoi(words[1]);
         l_node = fromBinary(words[0]);
 
-        Serial.print("node: ");
-        Serial.print(l_node);
-        Serial.print(" type: ");
-        Serial.print(l_type);
-        Serial.print(" value: ");
-        Serial.println(words[2]);
 
         sensor_t *sensor_temp;
         sensor_temp = sensor_data[l_type][l_node];
@@ -226,19 +193,17 @@ void loop() {
         free(sensor_data[l_type][l_node]);
 
 
-        Serial.println(sizeof(sensor_t));
-        // sensor_data[l_type][l_node] = (sensor_t*)malloc(sizeof(sensor_t));
+        Serial.print("node: ");
+        Serial.print(l_node);
+        Serial.print(" type: ");
+        Serial.print(l_type);
+        Serial.print(" value: ");
+        Serial.println(words[2]);
         sensor_t *var = (sensor_t*)malloc(sizeof(sensor_t));
         var->node = l_node;
         var->type = l_type;
         var->str = strdup(words[2]);
         sensor_data[l_type][l_node] = var;
-        // // memcpy()
-        // sensor_temp = (sensor_t*)malloc(sizeof(sensor_t));
-        // sensor_temp = &var; 
-
-        // sensor_data[l_type][l_node]  = sensor_temp;
-
 
         Serial.println("==============================");
         for (int i = 0; i < SENSOR_TYPE; ++i)
@@ -264,6 +229,8 @@ void loop() {
         }
         Serial.println("==============================");
 
+
+      digitalWrite(13, false); // Flash a light to show received good message
     }
     // Serial.println("3. === ENDED ===");
 
