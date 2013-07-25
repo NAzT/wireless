@@ -4,8 +4,6 @@
 #include <stdio.h>
 #include <string.h>
  
-static struct pt pt1, pt2;
-
 #define MAX_WORDS 100
 #ifndef NULL
 #define NULL 0
@@ -32,21 +30,18 @@ static struct pt pt1, pt2;
  * 255 full box
  */
 // Values are midpoints between analog value of key press.
+
 #define SENSOR_NUM 3
 #define SENSOR_TYPE 3
 #define MAX_NODE 8
-
-
 
 const byte cBrightness(128);
 //Pin assignments for DFRobot LCD Keypad Shield
 LiquidCrystal lcd(8, 9, 4, 5, 6, 7);
 DFR_LCDKeypad keypad(cBrightness);
-byte displayChar(1);
-int vertChar;
 
-static byte xPos(0);
-static byte yPos(0);
+byte sensor_page(1);
+int sensor_nid;
 
 char *buffer, *words[MAX_WORDS], *aPtr, *bPtr;
 int count = 0, i;
@@ -79,20 +74,19 @@ void charDisplay() {
     sensor_t *sensor_ptr; 
     // display characters mode
     lcd.setCursor(0, 0);
-    // lcd.print("Sensor Type: ");
     lcd.print("Type: ");
-    lcd.print(displayChar%SENSOR_NUM);
+    lcd.print(sensor_page%SENSOR_NUM);
     lcd.print(" ");
     lcd.print("Node: ");
-    lcd.print(vertChar%MAX_NODE);
+    lcd.print(sensor_nid%MAX_NODE);
     // lcd.setCursor(14,0);
-    // lcd.write(displayChar);
+    // lcd.write(sensor_page);
       
     lcd.setCursor(0,1);
     // lcd.print("Vert: ");
-    // lcd.print(vertChar);
+    // lcd.print(sensor_nid);
     // lcd.print(printStr);
-    sensor_ptr = sensor_data[displayChar%SENSOR_NUM][vertChar%MAX_NODE];
+    sensor_ptr = sensor_data[sensor_page%SENSOR_NUM][sensor_nid%MAX_NODE];
     if (sensor_ptr == 0) {
       lcd.print("NULL            ");
     }
@@ -111,12 +105,12 @@ void buttonUp(eDFRKey key) {
   switch(key) {
     case eUp:
       Serial.println("eUp");
-      vertChar = abs(--vertChar);
+      sensor_nid = abs(--sensor_nid);
       // if(brightness < 255) 
       //   keypad.setBrightness(++brightness);
       break;
     case eDown:
-      ++vertChar;
+      ++sensor_nid;
       Serial.println("eDown");    
       // if(brightness > 0) 
       //   keypad.setBrightness(--brightness);
@@ -124,14 +118,14 @@ void buttonUp(eDFRKey key) {
       
     case eLeft:
       Serial.println("eLeft");        
-      --displayChar;
-      vertChar = 0;
+      --sensor_page;
+      sensor_nid = 0;
       break;
       
     case eRight:
       Serial.println("eRight");        
-      vertChar = 0;
-      ++displayChar;
+      sensor_nid = 0;
+      ++sensor_page;
       break;
       
     case eSelect:
@@ -145,7 +139,7 @@ void buttonUp(eDFRKey key) {
 
 
 void setup() {
-  vertChar = 0;
+  sensor_nid = 0;
   Serial.begin(9600);
 
   // Initialise the IO and ISR
