@@ -37,17 +37,7 @@ static struct pt pt1, pt2;
 #define MAX_NODE 8
 
 
-typedef struct {
-  byte type;
-  byte node;
-  char *str;
-} sensor_t;
 
-sensor_t* sensor_data[SENSOR_TYPE][MAX_NODE] = {
-  {0, 0, 0, 0, 0, 0, 0, 0},
-  {0, 0, 0, 0, 0, 0, 0, 0},
-  {0, 0, 0, 0, 0, 0, 0, 0},
-}; 
 const byte cBrightness(128);
 //Pin assignments for DFRobot LCD Keypad Shield
 LiquidCrystal lcd(8, 9, 4, 5, 6, 7);
@@ -61,9 +51,24 @@ static byte yPos(0);
 char *buffer, *words[MAX_WORDS], *aPtr, *bPtr;
 int count = 0, i;
 
+// user defined functions
 int fromBinary(char *s) {
   return (int) strtol(s, NULL, 2);
 }
+
+// user defined types
+typedef struct {
+  byte type;
+  byte node;
+  char *str;
+} sensor_t;
+
+// initialization
+sensor_t* sensor_data[SENSOR_TYPE][MAX_NODE] = {
+  {0, 0, 0, 0, 0, 0, 0, 0},
+  {0, 0, 0, 0, 0, 0, 0, 0},
+  {0, 0, 0, 0, 0, 0, 0, 0},
+}; 
 
 
 // Character display is occuring once in setup, then only again in the button routines
@@ -171,11 +176,14 @@ void loop() {
   // vw_wait_rx();
   if (vw_get_message(buf, &buflen)) // Non-blocking    
   {
+      digitalWrite(13, true); // Flash a light to show received good message
+
       int l_type;
       int l_node;
       char* l_value;
-      digitalWrite(13, true); // Flash a light to show received good message
       Serial.println((char*) buf);
+
+      //SPLIT DATA WITH ,
       char *a = (char*) buf;
       while((aPtr = strsep(&a, ","))) {
           words[count++] = aPtr;
@@ -184,9 +192,9 @@ void loop() {
       l_type = atoi(words[1]);
       l_node = fromBinary(words[0]);
 
-
       sensor_t *tmpSensor;
       sensor_t *sensor_temp;
+
       sensor_temp = sensor_data[l_type][l_node];
       if (sensor_temp != 0) {
         free(sensor_data[l_type][l_node]->str);
