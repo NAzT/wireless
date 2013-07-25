@@ -49,17 +49,18 @@ static struct pt pt1, pt2;
 #define SENSOR_TYPE 3
 #define MAX_NODE 8
 
-char* sensor_data[SENSOR_TYPE][MAX_NODE] = {
+
+typedef struct {
+  byte type;
+  byte node;
+  char *str;
+} sensor_t;
+
+sensor_t* sensor_data[SENSOR_TYPE][MAX_NODE] = {
   {0, 0, 0, 0, 0, 0, 0, 0},
   {0, 0, 0, 0, 0, 0, 0, 0},
   {0, 0, 0, 0, 0, 0, 0, 0},
 }; 
-
-struct SENSOR {
-  byte type;
-  byte node;
-  char* s;
-};
 const byte cBrightness(128);
 //Pin assignments for DFRobot LCD Keypad Shield
 LiquidCrystal lcd(8, 9, 4, 5, 6, 7);
@@ -79,8 +80,6 @@ char *buffer, *words[MAX_WORDS], *aPtr, *bPtr;
 int count = 0, i;
 // char* printStr;
 
-char* data[10] = { '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0' };
-
 int fromBinary(char *s) {
   return (int) strtol(s, NULL, 2);
 }
@@ -91,6 +90,7 @@ int fromBinary(char *s) {
 // text instead of additional logic to update only chagned value and display character.
 // it is by far fast enough.
 void charDisplay() {
+    sensor_t *sensor_ptr; 
     // display characters mode
     lcd.setCursor(0, 0);
     // lcd.print("Sensor Type: ");
@@ -106,11 +106,12 @@ void charDisplay() {
     // lcd.print("Vert: ");
     // lcd.print(vertChar);
     // lcd.print(printStr);
-    if (sensor_data[displayChar%SENSOR_NUM][vertChar] == 0) {
+    sensor_ptr = sensor_data[displayChar%SENSOR_NUM][vertChar%MAX_NODE];
+    if (sensor_ptr == 0) {
       lcd.print("NULL            ");
     }
     else {
-      lcd.print(sensor_data[displayChar%SENSOR_NUM][vertChar%MAX_NODE]);
+      lcd.print((*sensor_ptr).str);
       lcd.print("      ");
     }
     // lcd.print("  ");  // make sure to cleanup after numerical wrap around
@@ -195,6 +196,9 @@ void loop() {
     // Serial.println("2. ### GOT IT ###");
     if (vw_get_message(buf, &buflen)) // Non-blocking    
     {
+        int l_type;
+        int l_node;
+        char* l_value;
         // digitalWrite(13, true); // Flash a light to show received good message
         Serial.println((char*) buf);
         // memcpy(buffer, (char*)buf, buflen);
@@ -204,17 +208,37 @@ void loop() {
             words[count++] = aPtr;
         }
 
+        l_type = atoi(words[1]);
+        l_node = fromBinary(words[0]);
+
         Serial.print("node: ");
-        Serial.print(fromBinary(words[0]));
+        Serial.print(l_node);
         Serial.print(" type: ");
-        Serial.print(words[1]);
+        Serial.print(l_type);
         Serial.print(" value: ");
         Serial.println(words[2]);
-        // if (fromBinary(words[1]) == (1+displayChar%SENSOR_NUM)) {
-        //   printStr = strdup(words[2]);
-        // }
-        free(sensor_data[atoi(words[1])][fromBinary(words[0])]);
-        sensor_data[atoi(words[1])][fromBinary(words[0])] = strdup(words[2]); 
+
+        sensor_t *sensor_temp;
+        sensor_temp = sensor_data[l_type][l_node];
+        if (sensor_temp != 0) {
+          free(sensor_data[l_type][l_node]->str);
+        }
+        free(sensor_data[l_type][l_node]);
+
+
+        Serial.println(sizeof(sensor_t));
+        // sensor_data[l_type][l_node] = (sensor_t*)malloc(sizeof(sensor_t));
+        sensor_t *var = (sensor_t*)malloc(sizeof(sensor_t));
+        var->node = l_node;
+        var->type = l_type;
+        var->str = strdup(words[2]);
+        sensor_data[l_type][l_node] = var;
+        // // memcpy()
+        // sensor_temp = (sensor_t*)malloc(sizeof(sensor_t));
+        // sensor_temp = &var; 
+
+        // sensor_data[l_type][l_node]  = sensor_temp;
+
 
         Serial.println("==============================");
         for (int i = 0; i < SENSOR_TYPE; ++i)
@@ -222,17 +246,17 @@ void loop() {
           for (int j = 0; j < MAX_NODE; ++j)
           {
             if (sensor_data[i][j] == 0) {
-              Serial.print("NULL");
+              Serial.print("null");
             }
             else {
-              Serial.print(sensor_data[i][j]);
+              Serial.print((*sensor_data[i][j]).str);
             }
 
-            if (atoi(words[1]) == 2) {
+            if (l_type == 2) {
               Serial.print(",\t");
             }
             else {
-              Serial.print("\t,\t");
+              Serial.print(",\t");
             }
 
           }
