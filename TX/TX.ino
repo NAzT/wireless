@@ -11,7 +11,7 @@ char buffer[16];
 
 // setup
 void setup() {
-  vw_set_tx_pin(6);
+  vw_set_tx_pin(13);
   vw_set_ptt_inverted(true); // Required for PTT
   vw_setup(2000); // Bits per sec
 }
@@ -21,22 +21,34 @@ void setup() {
 // main loop
 void loop()
 {
-    digitalWrite(13, true); // Flash a light to show transmitting
+//    digitalWrite(13, true); // Flash a light to show transmitting
    
     buffer[0] = '0'; //digitalRead(8)+48;
-    buffer[1] = '1';
-    buffer[2] = '2';
-    buffer[3] = ',';
+    buffer[1] = '0';
+    buffer[2] = '0';
+    buffer[3] = '0';
+    buffer[4] = '0'; 
+    buffer[5] = '0';    
+    buffer[6] = '\0';  
+ 
+//    buffer[0] = '1'; //digitalRead(8)+48;
+//    buffer[1] = '1';
+//    buffer[2] = '1';
+//    buffer[3] = '1';
+//    buffer[4] = '1'; 
+//    buffer[5] = '1';    
+//    buffer[6] = '\0';   
     
-//    dtostrf(dht.readTemperature(), 2, 2, &buffer[4]);
-    buffer[9] = ',';
-//    dtostrf(dht.readHumidity(), 2, 2, &buffer[10]);
-    buffer[15] = '\0';    
+    
+////    dtostrf(dht.readTemperature(), 2, 2, &buffer[4]);
+//    buffer[9] = ',';
+////    dtostrf(dht.readHumidity(), 2, 2, &buffer[10]);
+//    buffer[15] = '\0';    
     
     vw_send((uint8_t *)buffer, 16); // transmit msg
     vw_wait_tx(); // Wait for message to finish
 
-    digitalWrite(13, false);
+//    digitalWrite(13, false);
     delay(150);
 }
 // end main loop

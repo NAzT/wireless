@@ -11,8 +11,7 @@
 
 // Values are midpoints between analog value of key press.
 
-#define SENSOR_NUM 3
-#define SENSOR_TYPE 3
+#define NUM_SENSOR 3
 #define MAX_NODE 8
 
 const byte cBrightness(128);
@@ -21,10 +20,12 @@ LiquidCrystal lcd(8, 9, 4, 5, 6, 7);
 DFR_LCDKeypad keypad(cBrightness);
 
 byte sensor_page(1);
+byte select_pressed(0);
 int sensor_nid;
+int sensor_link_num;
 
-char *buffer, *words[MAX_WORDS], *aPtr, *bPtr;
-int count = 0, i;
+char *words[MAX_WORDS], *aPtr, *bPtr;
+int count = 0;
 
 // user defined functions
 int fromBinary(char *s) {
@@ -39,11 +40,13 @@ typedef struct {
 } sensor_t;
 
 // initialization
-sensor_t* sensor_data[SENSOR_TYPE][MAX_NODE] = {
+sensor_t* sensor_data[NUM_SENSOR][MAX_NODE] = {
   {0, 0, 0, 0, 0, 0, 0, 0},
   {0, 0, 0, 0, 0, 0, 0, 0},
   {0, 0, 0, 0, 0, 0, 0, 0},
 }; 
+
+sensor_t* sensor_link[MAX_NODE];
 
 
 // Character display is occuring once in setup, then only again in the button routines
@@ -55,7 +58,7 @@ void charDisplay() {
     // display characters mode
     lcd.setCursor(0, 0);
     lcd.print("Type: ");
-    lcd.print(sensor_page%SENSOR_NUM);
+    lcd.print(sensor_page%NUM_SENSOR);
     lcd.print(" ");
     lcd.print("Node: ");
     lcd.print(sensor_nid%MAX_NODE);
@@ -66,7 +69,7 @@ void charDisplay() {
     // lcd.print("Vert: ");
     // lcd.print(sensor_nid);
     // lcd.print(printStr);
-    sensor_ptr = sensor_data[sensor_page%SENSOR_NUM][sensor_nid%MAX_NODE];
+    sensor_ptr = sensor_data[sensor_page%NUM_SENSOR][sensor_nid%MAX_NODE];
     if (sensor_ptr == 0) {
       lcd.print("NULL            ");
     }
@@ -109,7 +112,17 @@ void buttonUp(eDFRKey key) {
       break;
       
     case eSelect:
-      Serial.println("eSelect");        
+      Serial.println("eSelect: ");        
+      ++select_pressed;
+      Serial.print(select_pressed);
+      Serial.print(":");
+      Serial.print(sensor_link_num);
+      Serial.print("=");
+      Serial.println(select_pressed%sensor_link_num);
+      sensor_t* tmp = sensor_link[select_pressed%sensor_link_num];
+      sensor_page = tmp->type;
+      sensor_nid = tmp->node;
+      charDisplay();  
       // switch to mouse mode
       // keypad.setButtonHeldHandler(0);
       return;
@@ -133,7 +146,8 @@ void setup() {
   lcd.clear();
   lcd.setCursor(0, 0);
   lcd.print("LCDKeypad v1.0");
-  keypad.setButtonUpHandler(buttonUp);
+  keypad.setButtonDownHandler(buttonUp);
+  // keypad.setButtonUpHandler(buttonUp);
    
   delay(250);
   
@@ -155,6 +169,9 @@ void loop() {
       int l_type;
       int l_node;
       char* l_value;
+      sensor_t *tmpSensor;
+      sensor_t *sensor_temp;
+
       Serial.println((char*) buf);
 
       //SPLIT DATA WITH ,
@@ -165,9 +182,6 @@ void loop() {
 
       l_type = atoi(words[1]);
       l_node = fromBinary(words[0]);
-
-      sensor_t *tmpSensor;
-      sensor_t *sensor_temp;
 
       sensor_temp = sensor_data[l_type][l_node];
       if (sensor_temp != 0) {
@@ -190,7 +204,9 @@ void loop() {
       sensor_data[l_type][l_node] = tmpSensor;
 
       Serial.println("==============================");
-      for (int i = 0; i < SENSOR_TYPE; ++i)
+      int sensor_link_idx = 0;
+      sensor_link_num =0;
+      for (int i = 0; i < NUM_SENSOR; ++i)
       {
         for (int j = 0; j < MAX_NODE; ++j)
         {
@@ -199,6 +215,8 @@ void loop() {
           }
           else {
             Serial.print((*sensor_data[i][j]).str);
+            sensor_link[sensor_link_idx++] = sensor_data[i][j];
+            sensor_link_num++;
           }
 
           if (l_type == 2) {
@@ -211,7 +229,17 @@ void loop() {
         }
         Serial.println();
       }
-      Serial.println("==============================");
+
+      Serial.println("===========================");
+      for (int i =0; i<sensor_link_num; i++) {
+        Serial.print("NODE: ");
+        Serial.print(sensor_link[i]->node);
+        Serial.print(" TYPE: ");
+        Serial.print(sensor_link[i]->type);
+        Serial.print(" VALUE: ");
+        Serial.println(sensor_link[i]->str);
+      }
+      Serial.println("===========================");
       digitalWrite(13, false); // Flash a light to show received good message
   }
 
