@@ -18,17 +18,22 @@ Adafruit_WS2801 strip = Adafruit_WS2801(200, dataPin, clockPin);
 
 //Adafruit_WS2801 strip = Adafruit_WS2801(25, dataPin, clockPin, WS2801_GRB);
 //Adafruit_WS2801 strip = Adafruit_WS2801(25, WS2801_GRB);
+byte r(0);
+byte g(0);
+byte b(0);
+
+byte isAlert(0);
 
 static struct pt pt1, pt2;
 static int thread1( struct pt *pt, long timeout ) {
   static long t1 = 0;
   PT_BEGIN( pt );
-  while(1) {
-    PT_WAIT_UNTIL( pt, (millis() - t1) > timeout );
-    Serial.print("IN THREAD 1");
-    colorWipe(Color(255, 0, 0), 1);    
+//  while(1) {
+//    PT_WAIT_UNTIL( pt, (millis() - t1) > timeout );
+    Serial.println("IN THREAD 1");
+    colorWipe(Color(r, g, b), 1);    
     t1 = millis();
-  }
+//  }
   PT_END( pt );
 }
 
@@ -62,17 +67,37 @@ void loop() {
     if (vw_get_message(buf, &buflen)) // Non-blocking
     {
         char* tmp = (char*)buf;
+        Serial.println(tmp);
 //        Serial.print((char*) buf);
 //        Serial.print("---:---");
 //        Serial.println(buflen);
         Serial.println(strcmp(tmp, "111111"));
         if (strcmp(tmp, "@@@111") == 0) {
           Serial.println("RED");
+          r = 255;
+          g = 0;
+          b = 0;
           thread1( &pt1, 200);
+          isAlert = 1;
         }
         else {
-
+          r = 0;
+          g = 255;
+          b = 0;
+          if (isAlert == 1) {
+            thread1( &pt1, 200);
+          }
+          isAlert = 0;
         }
+        Serial.println(millis());
+
+        if ((millis() / 1000) % 300 == 0) {
+          r = random(0, 255);
+          g = random(0, 255);
+          b = random(0, 255);
+          thread1( &pt1, 200);
+        }
+
 //        else if (strcmp((char*) buf, "000000") == 0) {
 //          Serial.println("000000 GOT JA");
 //          colorWipe(Color(0, 255, 0), 1);          
@@ -125,11 +150,11 @@ void rainbowCycle(uint8_t wait) {
 // good for testing purposes
 void colorWipe(uint32_t c, uint8_t wait) {
   int i;
-  
+  int j;
+
   for (i=0; i < strip.numPixels(); i++) {
-      strip.setPixelColor(i, c);
+      strip.setPixelColor(i, Color(r, g, b));
       strip.show();
-      delay(wait);
   }
 }
 
