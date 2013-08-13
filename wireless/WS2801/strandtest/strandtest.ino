@@ -14,7 +14,7 @@ uint8_t clockPin = 3;    // Green wire on Adafruit Pixels
 // and the +5V wire to a +5V supply
 
 // Set the first variable to the NUMBER of pixels. 25 = 25 pixels in a row
-Adafruit_WS2801 strip = Adafruit_WS2801(200, dataPin, clockPin);
+Adafruit_WS2801 strip = Adafruit_WS2801(250, dataPin, clockPin);
 
 //Adafruit_WS2801 strip = Adafruit_WS2801(25, dataPin, clockPin, WS2801_GRB);
 //Adafruit_WS2801 strip = Adafruit_WS2801(25, WS2801_GRB);
@@ -23,6 +23,8 @@ byte g(0);
 byte b(0);
 
 byte isAlert(0);
+
+int isStart = 0;
 
 static struct pt pt1, pt2;
 static int thread1( struct pt *pt, long timeout ) {
@@ -64,40 +66,74 @@ void loop() {
     uint8_t buf[VW_MAX_MESSAGE_LEN];
     uint8_t buflen = VW_MAX_MESSAGE_LEN;
 
-    if (vw_get_message(buf, &buflen)) // Non-blocking
-    {
+    if (vw_get_message(buf, &buflen)) { // Non-blocking
         char* tmp = (char*)buf;
         Serial.println(tmp);
+        if (tmp[0] == '@' && tmp[1] == '@'  && tmp[2] == '@'
+            && tmp[3] == '1' && tmp[4] == '1' && tmp[5] == '1') {
+          char dest[4];
+          memcpy(dest, tmp + 4, 3);
+          dest[3] = '\0';
+          printf("After memcpy dest = %s\n", dest);
+          if (atoi(dest) < 140) {
+            r = 255;
+            g = 100;
+            b = 100;
+            colorWipe(Color(r, g, b), 1);
+            
+            delay(5000);
+            
+            r = 0;
+            g = 0;
+            b = 0;
+            colorWipe(Color(r, g, b), 1);
+            
+          }
+        }
+     }    
+
+
+//    if (vw_get_message(buf, &buflen)) // Non-blocking
+    {
+//        char* tmp = (char*)buf;
+//        Serial.println(tmp);
 //        Serial.print((char*) buf);
 //        Serial.print("---:---");
 //        Serial.println(buflen);
-        Serial.println(strcmp(tmp, "111111"));
-        if (strcmp(tmp, "@@@111") == 0) {
-          Serial.println("RED");
-          r = 255;
-          g = 0;
-          b = 0;
-          thread1( &pt1, 200);
-          isAlert = 1;
-        }
-        else {
-          r = 0;
-          g = 255;
-          b = 0;
-          if (isAlert == 1) {
-            thread1( &pt1, 200);
-          }
-          isAlert = 0;
-        }
-        Serial.println(millis());
+//        Serial.println(strcmp(tmp, "111111"));
+//        if (strcmp(tmp, "@@@111") == 0) {
+//          Serial.println("RED");
+//          r = 255;
+//          g = 0;
+//          b = 0;
+//          thread1( &pt1, 200);
+//          isAlert = 1;
+//        }
+//        else {
+//          r = 0;
+//          g = 255;
+//          b = 0;
+//          if (isAlert == 1) {
+//            thread1( &pt1, 200);
+//          }
+//          isAlert = 0;
+//        }
+//        Serial.println(millis());
+//       if (isStart == 0) {
+//          r = random(0, 255);
+//          g = random(0, 255);
+//          b = random(0, 255);
+//          thread1( &pt1, 200);
+//          isStart = 1;
+//       }
+//       if ((millis() / 1000) % 5 == 0) {
+//          r = random(0, 255);
+//          g = random(0, 255);
+//          b = random(0, 255);
+//          colorWipe(Color(r, g, b), 1);    
+//        }
 
-        if ((millis() / 1000) % 300 == 0) {
-          r = random(0, 255);
-          g = random(0, 255);
-          b = random(0, 255);
-          thread1( &pt1, 200);
-        }
-
+//          delay(5000);
 //        else if (strcmp((char*) buf, "000000") == 0) {
 //          Serial.println("000000 GOT JA");
 //          colorWipe(Color(0, 255, 0), 1);          
