@@ -13,6 +13,7 @@
 
 #define NUM_SENSOR 8
 #define MAX_NODE 8
+
 #define DEBUG 0
 #define SHOW_TABLE 0
 
@@ -42,7 +43,7 @@ typedef struct {
 } sensor_t;
 
 // initialization
-sensor_t* sensor_data[NUM_SENSOR][MAX_NODE] = {
+sensor_t* sensor_data[MAX_NODE][NUM_SENSOR] = {
   {0, 0, 0, 0, 0, 0, 0, 0},
   {0, 0, 0, 0, 0, 0, 0, 0},
   {0, 0, 0, 0, 0, 0, 0, 0},
@@ -62,13 +63,16 @@ sensor_t* sensor_link[MAX_NODE];
 // it is by far fast enough.
 void charDisplay() {
     sensor_t *sensor_ptr; 
+    int _sensor_type = sensor_page%NUM_SENSOR;
+    int _sensor_nid = sensor_nid%MAX_NODE;
+
     // display characters mode
     lcd.setCursor(0, 0);
-    lcd.print("Type: "); lcd.print(sensor_page%NUM_SENSOR); lcd.print(" "); lcd.print("Node: "); lcd.print(sensor_nid%MAX_NODE);
+    lcd.print("Type: "); lcd.print(_sensor_type); lcd.print(" "); lcd.print("Node: "); lcd.print(_sensor_nid);
       
     lcd.setCursor(0,1);
-    sensor_ptr = sensor_data[sensor_page%NUM_SENSOR][sensor_nid%MAX_NODE];
-    
+    sensor_ptr = sensor_data[_sensor_type][_sensor_nid];
+
     if (sensor_ptr == NULL) {
       lcd.print("NULL            ");
     }
@@ -139,6 +143,7 @@ void buttonUp(eDFRKey key) {
 
 void setup() {
   sensor_nid = 0;
+
   Serial.begin(9600);
   Serial.println("SETUP");
   // Initialise the IO and ISR
@@ -177,9 +182,6 @@ void loop() {
       int l_node;
       char* l_value;
 
-      sensor_t *temp_sensor;
-      sensor_t *sensor_temp;
-
       //SPLIT DATA WITH ,
       char *a = (char*) buf;
       while((aPtr = strsep(&a, ","))) {
@@ -190,10 +192,8 @@ void loop() {
       l_type = atoi(words[1]);
       l_node = fromBinary(words[0]);
 
-      sensor_temp = sensor_data[l_type][l_node];
-
-      // free memory
-      if (sensor_temp != NULL) {
+      // free string memory
+      if (sensor_data[l_type][l_node] != NULL) {
         free(sensor_data[l_type][l_node]->str);
       }
 
@@ -208,10 +208,13 @@ void loop() {
         Serial.println(words[2]);
       }
 
+      sensor_t *temp_sensor;
+
       temp_sensor = (sensor_t*)malloc(sizeof(sensor_t));
       temp_sensor->node = l_node;
       temp_sensor->type = l_type;
       temp_sensor->str = strdup(words[2]);
+
       sensor_data[l_type][l_node] = temp_sensor;
        
       if (DEBUG) {
@@ -227,7 +230,7 @@ void loop() {
       {
         for (int j = 0; j < MAX_NODE; ++j)
         {
-          if (sensor_data[i][j] == 0) {
+          if (sensor_data[i][j] == NULL) {
             if (SHOW_TABLE) {
               Serial.print("null");
             }
@@ -253,11 +256,13 @@ void loop() {
           Serial.println();
         }
       }
+      
       if (SHOW_TABLE) {
         Serial.println("===========================");
       }
       
-      for (int i =0; i<sensor_link_num; i++) {
+      // Send data to serial port
+      for (int i=0; i < sensor_link_num; i++) {
         Serial.print("NODE: ");
         Serial.print(sensor_link[i]->node);
         Serial.print(" TYPE: ");
@@ -266,13 +271,16 @@ void loop() {
         Serial.print(sensor_link[i]->str);
         Serial.println("]");        
       }
+
       if (DEBUG) {
         Serial.println("===========================");
       }
+
       digitalWrite(13, false); // Flash a light to show received good message
   }
 
   charDisplay();  
+
   unsigned long current = millis();
   // Serial.println(current);
   
